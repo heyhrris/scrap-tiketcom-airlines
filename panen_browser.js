@@ -56,18 +56,25 @@
   };
 
   const yAwal = window.scrollY;
-  let pos = 0, diam = 0;
-  for (let i = 0; i < 150; i++) {
-    panen();
+  let pos = 0, diam = 0, sampaiDasar = false;
+  for (let i = 0; i < 400; i++) {
     const sebelum = seen.size;
-    await sleep(0);
+    panen();
     diam = seen.size === sebelum ? diam + 1 : 0;
+
     const tinggi = document.body.scrollHeight;
-    if (diam >= 8 || pos > tinggi + 3000) break;
-    pos += 500;
+    sampaiDasar = (window.scrollY + window.innerHeight) >= (tinggi - 80);
+
+    // Berhenti HANYA bila sudah benar-benar di dasar halaman DAN tidak ada
+    // tambahan baru lagi. Stagnasi di tengah (halaman lambat memuat) tidak
+    // dianggap selesai — jika tidak, bagian termahal di bawah bisa terlewat.
+    if (sampaiDasar && diam >= 6) break;
+    if (diam >= 40) break;                       // jaring pengaman
+
+    pos = Math.min(pos + 400, tinggi);
     window.scrollTo(0, pos);
-    await sleep(350);
-    if (i % 10 === 0) console.log(`  ...${seen.size} penerbangan`);
+    await sleep(450);
+    if (i % 12 === 0) console.log(`  ...${seen.size} penerbangan`);
   }
   window.scrollTo(0, yAwal);
 
@@ -76,6 +83,10 @@
   let tersalin = false;
   try { await navigator.clipboard.writeText(teks); tersalin = true; } catch (e) {}
   console.log(`✅ SELESAI — ${seen.size} penerbangan`);
+  console.log(sampaiDasar
+    ? '   ✔ sudah mencapai dasar daftar (tidak ada yang terlewat)'
+    : '%c   ⚠ BELUM sampai dasar — ulangi halaman ini (tekan ↑ lalu Enter)',
+    sampaiDasar ? '' : 'color:#c00;font-weight:bold');
   if (tersalin) {
     console.log('   Sudah tersalin ke clipboard — tinggal tempel (Cmd+V).');
   } else {
