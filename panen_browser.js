@@ -12,7 +12,7 @@
  *   5. Lanjut halaman berikutnya — hasil menumpuk sendiri di browser
  *   6. Di halaman TERAKHIR: ketik  copy(HASIL)  lalu tempel ke file .txt
  *
- * Mulai minggu baru?  Kosongkan dulu:  localStorage.removeItem('PANEN_TIKET')
+ * Tumpukan direset OTOMATIS tiap ganti minggu — tidak perlu apa-apa.
  */
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -84,8 +84,26 @@
   // Tumpuk hasil semua halaman di localStorage, supaya cukup menyalin SEKALI
   // di akhir — tidak perlu copy/paste tiap halaman.
   const KUNCI = 'PANEN_TIKET';
+  const KUNCI_MINGGU = 'PANEN_TIKET_MINGGU';
+
+  // Tumpukan direset otomatis tiap ganti minggu. Penanda minggunya adalah
+  // tanggal Senin terakhir — sama dengan acuan yang dipakai worksheet —
+  // supaya data minggu lalu tidak ikut tercatat dengan acuan minggu ini.
+  const kini = new Date();
+  const senin = new Date(kini);
+  senin.setDate(kini.getDate() - ((kini.getDay() + 6) % 7));
+  const mingguIni = senin.toISOString().slice(0, 10);
+
   let kumpulan = [];
-  try { kumpulan = JSON.parse(localStorage.getItem(KUNCI) || '[]'); } catch (e) {}
+  try {
+    if (localStorage.getItem(KUNCI_MINGGU) !== mingguIni) {
+      localStorage.removeItem(KUNCI);
+      localStorage.setItem(KUNCI_MINGGU, mingguIni);
+      console.log(`%c🔄 Minggu baru (acuan Senin ${mingguIni}) — tumpukan lama dikosongkan`,
+                  'color:#06c;font-weight:bold');
+    }
+    kumpulan = JSON.parse(localStorage.getItem(KUNCI) || '[]');
+  } catch (e) {}
   const gabung = [...new Set([...kumpulan, ...seen.values()])];
   let tersimpan = true;
   try { localStorage.setItem(KUNCI, JSON.stringify(gabung)); } catch (e) { tersimpan = false; }
