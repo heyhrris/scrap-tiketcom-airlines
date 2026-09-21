@@ -295,6 +295,16 @@ def main():
            else senin_terakhir(datetime.now()))
 
     if a.html:
+        # Kosongkan tampungan minggu lalu (disalin dulu sebagai cadangan),
+        # supaya data antar-minggu tidak tercampur tanpa disadari.
+        kum = Path(__file__).parent / "kumpulan.txt"
+        if kum.exists() and kum.stat().st_size > 0:
+            (Path(__file__).parent / "kumpulan_lalu.txt").write_text(kum.read_text())
+            kum.write_text("")
+            print("🔄 kumpulan.txt dikosongkan (cadangan: kumpulan_lalu.txt)")
+        else:
+            kum.write_text("")
+
         out = buat_html(ref)
         print(f'✅ {out.name} dibuat (acuan {ref:%A, %d %B %Y})')
         subprocess.run(['open', str(out)], check=False)

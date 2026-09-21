@@ -14,3 +14,7 @@ scraper.log
 
 # Worksheet mingguan (dibuat ulang tiap minggu)
 worksheet.html
+
+# Tampungan hasil panen manual
+kumpulan.txt
+kumpulan_lalu.txt
