@@ -22,6 +22,7 @@ CARA PAKAI
 """
 import argparse
 import re
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -229,9 +230,58 @@ def simpan_panen(baris: list[dict], ref: datetime) -> None:
     print(f"\nLangkah berikutnya:  .venv/bin/python hitung_rata_rata.py")
 
 
+
+def buat_html(ref: datetime) -> Path:
+    """Tulis worksheet.html: semua link rute x tanggal + skrip panen siap salin."""
+    import html as _h
+    tgl = [(ref + timedelta(days=d)).strftime("%Y-%m-%d") for d in DAYS_AHEAD]
+    skrip = (Path(__file__).parent / "panen_browser.js").read_text()
+    rows, n = [], 0
+    for kode, nama in ROUTES.items():
+        rows.append(f'<h3>{kode} — {nama}</h3><ol start="{n+1}">')
+        for d, t in zip(DAYS_AHEAD, tgl):
+            n += 1
+            rows.append(f'<li><a href="{_h.escape(build_url(kode, t))}" target="_blank">'
+                        f'{t} &nbsp;<small>H+{d}</small></a></li>')
+        rows.append("</ol>")
+    doc = f"""<!doctype html><meta charset="utf-8"><title>Worksheet {ref:%d %b %Y}</title>
+<style>
+body{{font:15px/1.6 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#222}}
+h1{{font-size:20px}} h3{{margin:1.4rem 0 .3rem;font-size:15px;color:#05a}}
+ol{{margin:.2rem 0 .2rem 1.2rem;padding:0}} li{{margin:.15rem 0}} ol.l li{{margin:.35rem 0}}
+a{{color:#06c}} a:visited{{color:#999}}
+textarea{{width:100%;height:120px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #ccc;border-radius:6px;padding:.6rem}}
+.box{{background:#f6f7f9;border:1px solid #e2e4e8;border-radius:8px;padding:1rem;margin:1rem 0}}
+button{{font:14px system-ui;padding:.45rem .9rem;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer}}
+</style>
+<h1>Worksheet panen harga — acuan Senin {ref:%d %B %Y}</h1>
+<p><b>{n} halaman</b> ({len(tgl)} Jumat × {len(ROUTES)} rute). Link yang sudah dikunjungi jadi abu-abu.</p>
+<div class="box">
+<b>Putaran tiap halaman:</b>
+<ol class="l">
+<li>Klik link → tunggu daftar penerbangan muncul</li>
+<li><b>Cmd+Option+J</b> → tekan <b>↑</b> dua kali → <b>Enter</b></li>
+<li>Tunggu <code>✅ SELESAI</code></li>
+<li>Ketik <code>copy(HASIL)</code> → <b>Enter</b></li>
+<li>Ke TextEdit → <b>Cmd+V</b> → <b>Enter</b> → <b>Cmd+S</b></li>
+</ol>
+<button onclick="navigator.clipboard.writeText(document.getElementById('s').value).then(()=>this.textContent='✅ Tersalin!')">Salin skrip panen</button>
+<small>(hanya perlu sekali, di halaman pertama)</small>
+<textarea id="s" readonly>{_h.escape(skrip)}</textarea>
+</div>
+{''.join(rows)}
+<div class="box"><b>Setelah selesai:</b> kirim isi kumpulan.txt ke Claude, atau jalankan
+<code>.venv/bin/python input_manual.py --panen kumpulan.txt</code></div>
+"""
+    out = Path(__file__).parent / "worksheet.html"
+    out.write_text(doc)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description="Input manual harga tiket")
     ap.add_argument("--worksheet", action="store_true", help="cetak daftar & URL yang perlu dicek")
+    ap.add_argument("--html", action="store_true", help="buat worksheet.html & buka di browser")
     ap.add_argument("--input", help="file berisi data (atau '-' untuk stdin)")
     ap.add_argument("--panen", help="file berisi keluaran panen_browser.js (atau '-' untuk stdin)")
     ap.add_argument("--n", type=int, default=5, help="jumlah Jumat ke depan (default 5, maks 13)")
@@ -243,6 +293,12 @@ def main():
 
     ref = (datetime.strptime(a.date, "%Y-%m-%d") if a.date
            else senin_terakhir(datetime.now()))
+
+    if a.html:
+        out = buat_html(ref)
+        print(f'✅ {out.name} dibuat (acuan {ref:%A, %d %B %Y})')
+        subprocess.run(['open', str(out)], check=False)
+        return
 
     if a.panen:
         teks = sys.stdin.read() if a.panen == "-" else Path(a.panen).read_text()
