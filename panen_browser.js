@@ -72,9 +72,14 @@
   window.scrollTo(0, yAwal);
 
   const teks = [...seen.values()].join('\n');
-  try { await navigator.clipboard.writeText(teks); } catch (e) {
-    console.warn('Clipboard ditolak — salin manual dari output di bawah');
+  window.HASIL = teks;                       // simpan agar bisa disalin dengan copy(HASIL)
+  let tersalin = false;
+  try { await navigator.clipboard.writeText(teks); tersalin = true; } catch (e) {}
+  console.log(`✅ SELESAI — ${seen.size} penerbangan`);
+  if (tersalin) {
+    console.log('   Sudah tersalin ke clipboard — tinggal tempel (Cmd+V).');
+  } else {
+    console.log('%c   Ketik:  copy(HASIL)   lalu Enter  → data tersalin ke clipboard',
+                'color:#0a0;font-weight:bold');
   }
-  console.log(`✅ SELESAI — ${seen.size} penerbangan (tersalin ke clipboard)`);
-  console.log(teks);
 })();
