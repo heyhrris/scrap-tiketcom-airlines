@@ -9,7 +9,10 @@
  *   2. Buka DevTools Console  (Cmd+Option+J)
  *   3. Tempel seluruh isi file ini, tekan Enter
  *   4. Tunggu sampai muncul "SELESAI — N penerbangan (tersalin)"
- *   5. Hasil sudah ada di clipboard; tempel ke Claude atau ke file .txt
+ *   5. Lanjut halaman berikutnya — hasil menumpuk sendiri di browser
+ *   6. Di halaman TERAKHIR: ketik  copy(HASIL)  lalu tempel ke file .txt
+ *
+ * Mulai minggu baru?  Kosongkan dulu:  localStorage.removeItem('PANEN_TIKET')
  */
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,19 +81,31 @@
   }
   window.scrollTo(0, yAwal);
 
-  const teks = [...seen.values()].join('\n');
-  window.HASIL = teks;                       // simpan agar bisa disalin dengan copy(HASIL)
-  let tersalin = false;
-  try { await navigator.clipboard.writeText(teks); tersalin = true; } catch (e) {}
-  console.log(`✅ SELESAI — ${seen.size} penerbangan`);
+  // Tumpuk hasil semua halaman di localStorage, supaya cukup menyalin SEKALI
+  // di akhir — tidak perlu copy/paste tiap halaman.
+  const KUNCI = 'PANEN_TIKET';
+  let kumpulan = [];
+  try { kumpulan = JSON.parse(localStorage.getItem(KUNCI) || '[]'); } catch (e) {}
+  const gabung = [...new Set([...kumpulan, ...seen.values()])];
+  let tersimpan = true;
+  try { localStorage.setItem(KUNCI, JSON.stringify(gabung)); } catch (e) { tersimpan = false; }
+
+  window.HASIL = gabung.join('\n');          // seluruh yang sudah terkumpul
+  const halaman = new Set(gabung.map((b) => b.split('|').slice(0, 2).join('|'))).size;
+
+  console.log(`✅ SELESAI — ${seen.size} penerbangan di halaman ini`);
   console.log(sampaiDasar
     ? '   ✔ sudah mencapai dasar daftar (tidak ada yang terlewat)'
     : '%c   ⚠ BELUM sampai dasar — ulangi halaman ini (tekan ↑ lalu Enter)',
     sampaiDasar ? '' : 'color:#c00;font-weight:bold');
-  if (tersalin) {
-    console.log('   Sudah tersalin ke clipboard — tinggal tempel (Cmd+V).');
+
+  if (tersimpan) {
+    console.log(`%c📦 Total terkumpul: ${gabung.length} penerbangan dari ${halaman} halaman`,
+                'color:#06c;font-weight:bold');
+    console.log('   Belum perlu menyalin apa pun. Lanjut saja ke halaman berikutnya.');
+    console.log('   Di halaman TERAKHIR nanti, ketik:  copy(HASIL)');
   } else {
-    console.log('%c   Ketik:  copy(HASIL)   lalu Enter  → data tersalin ke clipboard',
-                'color:#0a0;font-weight:bold');
+    console.log('%c   ⚠ Penyimpanan penuh — salin sekarang: copy(HASIL)',
+                'color:#c00;font-weight:bold');
   }
 })();
