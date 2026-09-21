@@ -11,3 +11,6 @@ scraper.log
 
 # macOS
 .DS_Store
+
+# Worksheet mingguan (dibuat ulang tiap minggu)
+worksheet.html

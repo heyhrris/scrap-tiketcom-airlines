@@ -56,19 +56,21 @@ def build_url(dest: str, date_str: str) -> str:
 
 
 def worksheet(ref: datetime) -> None:
-    print(f"\nAcuan: {ref.strftime('%A, %d %B %Y')}  →  {len(DAYS_AHEAD)} tanggal Jumat\n")
     tgl = [(ref + timedelta(days=d)).strftime("%Y-%m-%d") for d in DAYS_AHEAD]
-    print("Tanggal (urut H+4..H+88):")
+    total = len(ROUTES) * len(tgl)
+    print(f"\nAcuan : {ref.strftime('%A, %d %B %Y')}")
+    print(f"Target: {len(tgl)} Jumat x {len(ROUTES)} rute = {total} halaman\n")
     for d, t in zip(DAYS_AHEAD, tgl):
         print(f"   H+{d:<3} {t}  ({(ref + timedelta(days=d)).strftime('%a')})")
-    print("\nBuka satu halaman per rute — strip 'harga termurah' di atas hasil")
-    print("biasanya sudah menampilkan beberapa tanggal sekaligus:\n")
+    print("\nBuka tiap URL di Chrome, tempel panen_browser.js di Console (Cmd+Option+J),")
+    print("lalu tempel hasilnya menumpuk ke satu file .txt\n")
+    n = 0
     for kode in ROUTES:
-        print(f"  {kode}: {build_url(kode, tgl[0])}")
-    print("\nFormat jawaban (13 angka per rute, urut seperti daftar tanggal di atas):")
-    for kode in ROUTES:
-        print(f"  {kode}: ")
-    print()
+        print(f"--- {kode} ({ROUTES[kode]}) ---")
+        for t in tgl:
+            n += 1
+            print(f"{n:3}. {build_url(kode, t)}")
+        print()
 
 
 def parse_input(teks: str) -> dict:
@@ -232,8 +234,12 @@ def main():
     ap.add_argument("--worksheet", action="store_true", help="cetak daftar & URL yang perlu dicek")
     ap.add_argument("--input", help="file berisi data (atau '-' untuk stdin)")
     ap.add_argument("--panen", help="file berisi keluaran panen_browser.js (atau '-' untuk stdin)")
+    ap.add_argument("--n", type=int, default=5, help="jumlah Jumat ke depan (default 5, maks 13)")
     ap.add_argument("--date", help="tanggal acuan YYYY-MM-DD (default: Senin terakhir)")
     a = ap.parse_args()
+
+    global DAYS_AHEAD
+    DAYS_AHEAD = DAYS_AHEAD[:max(1, min(a.n, len(DAYS_AHEAD)))]
 
     ref = (datetime.strptime(a.date, "%Y-%m-%d") if a.date
            else senin_terakhir(datetime.now()))
