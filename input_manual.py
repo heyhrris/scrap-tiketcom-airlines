@@ -231,10 +231,19 @@ def simpan_panen(baris: list[dict], ref: datetime) -> None:
 
 
 
+def bookmarklet(nama_file: str) -> str:
+    """Ubah skrip JS menjadi URL bookmarklet (javascript:...)."""
+    from urllib.parse import quote
+    kode = (Path(__file__).parent / nama_file).read_text()
+    return "javascript:" + quote(kode, safe="")
+
+
 def buat_html(ref: datetime) -> Path:
-    """Tulis worksheet.html: semua link rute x tanggal + skrip panen siap salin."""
+    """Tulis worksheet.html: tombol bookmarklet + semua link rute x tanggal."""
     import html as _h
     tgl = [(ref + timedelta(days=d)).strftime("%Y-%m-%d") for d in DAYS_AHEAD]
+    bm_panen = _h.escape(bookmarklet("panen_browser.js"))
+    bm_salin = _h.escape(bookmarklet("salin_hasil.js"))
     skrip = (Path(__file__).parent / "panen_browser.js").read_text()
     rows, n = [], 0
     for kode, nama in ROUTES.items():
@@ -250,28 +259,44 @@ body{{font:15px/1.6 -apple-system,system-ui,sans-serif;max-width:860px;margin:2r
 h1{{font-size:20px}} h3{{margin:1.4rem 0 .3rem;font-size:15px;color:#05a}}
 ol{{margin:.2rem 0 .2rem 1.2rem;padding:0}} li{{margin:.15rem 0}} ol.l li{{margin:.35rem 0}}
 a{{color:#06c}} a:visited{{color:#999}}
-textarea{{width:100%;height:120px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #ccc;border-radius:6px;padding:.6rem}}
-.box{{background:#f6f7f9;border:1px solid #e2e4e8;border-radius:8px;padding:1rem;margin:1rem 0}}
-button{{font:14px system-ui;padding:.45rem .9rem;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer}}
+.box{{background:#f6f7f9;border:1px solid #e2e4e8;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}}
+.bm{{display:inline-block;margin:.3rem .6rem .3rem 0;padding:.5rem 1rem;border:2px dashed #06c;border-radius:8px;
+     background:#fff;color:#06c !important;font-weight:600;text-decoration:none;cursor:grab}}
+details{{margin-top:.6rem}} summary{{cursor:pointer;color:#555}}
+textarea{{width:100%;height:110px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #ccc;border-radius:6px;padding:.6rem}}
 </style>
 <h1>Worksheet panen harga — acuan Senin {ref:%d %B %Y}</h1>
 <p><b>{n} halaman</b> ({len(tgl)} Jumat × {len(ROUTES)} rute). Link yang sudah dikunjungi jadi abu-abu.</p>
+
 <div class="box">
-<b>Putaran tiap halaman:</b>
+<b>Pasang tombol (sekali saja, lewati kalau sudah terpasang):</b>
 <ol class="l">
-<li>Klik link → tunggu daftar penerbangan muncul</li>
-<li><b>Cmd+Option+J</b> → tekan <b>↑</b> dua kali → <b>Enter</b></li>
-<li>Tunggu <code>✅ SELESAI</code></li>
-<li>Ketik <code>copy(HASIL)</code> → <b>Enter</b></li>
-<li>Ke TextEdit → <b>Cmd+V</b> → <b>Enter</b> → <b>Cmd+S</b></li>
+<li>Tampilkan bookmark bar Chrome: <b>Cmd+Shift+B</b></li>
+<li><b>Seret</b> kedua tombol di bawah ini ke bookmark bar:</li>
 </ol>
-<button onclick="navigator.clipboard.writeText(document.getElementById('s').value).then(()=>this.textContent='✅ Tersalin!')">Salin skrip panen</button>
-<small>(hanya perlu sekali, di halaman pertama)</small>
-<textarea id="s" readonly>{_h.escape(skrip)}</textarea>
+<a class="bm" href="{bm_panen}">📦 Panen</a>
+<a class="bm" href="{bm_salin}">📋 Salin hasil</a>
+<p><small>Jangan diklik di halaman ini — diseret ke bookmark bar. Kalau skripnya diperbarui,
+hapus tombol lama di bookmark bar lalu seret ulang dari worksheet terbaru.</small></p>
+</div>
+
+<div class="box">
+<b>Tiap halaman (2 klik):</b>
+<ol class="l">
+<li>Klik link di bawah → tunggu daftar penerbangan muncul</li>
+<li>Klik <b>📦 Panen</b> di bookmark bar → tunggu kotak hijau <b>✅</b> di pojok kanan bawah → <b>Cmd+W</b></li>
+</ol>
+<b>Setelah halaman terakhir:</b>
+<ol class="l">
+<li>Di tab tiket.com mana pun, klik <b>📋 Salin hasil</b></li>
+<li>Buka kumpulan.txt → <b>Cmd+V</b> → <b>Cmd+S</b> → bilang ke Claude "sudah tersimpan"</li>
+</ol>
+<p><small>Kotak <b style="color:#c00">merah</b> = ada yang perlu diulang; baca pesannya.</small></p>
+<details><summary>Cara lama lewat Console (cadangan)</summary>
+<p>Cmd+Option+J → tempel skrip → Enter. Di akhir ketik <code>copy(HASIL)</code>.</p>
+<textarea readonly>{_h.escape(skrip)}</textarea></details>
 </div>
 {''.join(rows)}
-<div class="box"><b>Setelah selesai:</b> kirim isi kumpulan.txt ke Claude, atau jalankan
-<code>.venv/bin/python input_manual.py --panen kumpulan.txt</code></div>
 """
     out = Path(__file__).parent / "worksheet.html"
     out.write_text(doc)

@@ -15,29 +15,31 @@ cd "/Users/haris/Library/Mobile Documents/com~apple~CloudDocs/Haris Eko Faruddin
 Otomatis: tanggal disetel ke 5 Jumat terdekat, `kumpulan.txt` dikosongkan
 (cadangan disimpan ke `kumpulan_lalu.txt`), worksheet terbuka di browser.
 
-### 2. Halaman pertama
+### 2. Pasang tombol (sekali saja)
 
-1. Klik tombol **Salin skrip panen** di worksheet
-2. Klik link nomor **1**
-3. **Cmd+Option+J** → klik baris `>` → **Cmd+V** → **Enter**
+1. Tampilkan bookmark bar Chrome: **Cmd+Shift+B**
+2. Dari worksheet, **seret** tombol **📦 Panen** dan **📋 Salin hasil** ke bookmark bar
 
-Kalau Chrome minta, ketik `allow pasting` lalu Enter, baru tempel lagi.
+Kalau skripnya diperbarui, hapus tombol lama lalu seret ulang dari worksheet terbaru.
 
-### 3. Halaman 2–35
+### 3. Tiap halaman (35×)
 
-Klik link → **Cmd+Option+J** → **↑** → **Enter** → tunggu `✅ SELESAI` → **Cmd+W**
+Klik link → tunggu daftar penerbangan muncul → klik **📦 Panen** →
+tunggu kotak **hijau ✅** di pojok kanan bawah → **Cmd+W**
 
-Yang dilirik tiap halaman:
-- `✔ sudah mencapai dasar daftar` → aman
-- `⚠ BELUM sampai dasar` → ulangi halaman itu (↑ lalu Enter)
+- Kotak hijau `✔ sudah sampai dasar daftar` → aman
+- Kotak **merah** → baca pesannya, biasanya cukup klik **📦 Panen** lagi
 - `📦 Total terkumpul` → harus terus naik
 
 Tip: **Cmd+klik** beberapa link sekaligus, lalu kerjakan tab per tab.
 
-### 4. Halaman terakhir
+### 4. Setelah halaman terakhir
 
-1. Ketik `copy(HASIL)` → **Enter**
+1. Di tab tiket.com mana pun, klik **📋 Salin hasil**
 2. Buka `kumpulan.txt` di TextEdit → **Cmd+V** → **Cmd+S**
+
+(Cadangan tanpa tombol: Cmd+Option+J → tempel isi `panen_browser.js` → Enter;
+di akhir ketik `copy(HASIL)`.)
 
 ### 5. Serahkan ke Claude
 
