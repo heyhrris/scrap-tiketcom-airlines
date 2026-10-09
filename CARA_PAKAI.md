@@ -22,7 +22,7 @@ Otomatis: tanggal disetel ke 5 Jumat terdekat, `kumpulan.txt` dikosongkan
 
 Kalau skripnya diperbarui, hapus tombol lama lalu seret ulang dari worksheet terbaru.
 
-### 3. Tiap halaman (35×)
+### 3. Tiap halaman (59×: 7 rute domestik × 5 Jumat + 8 rute internasional × 3 Jumat)
 
 Klik link → tunggu daftar penerbangan muncul → klik **📦 Panen** →
 tunggu kotak **hijau ✅** di pojok kanan bawah → **Cmd+W**

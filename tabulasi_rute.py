@@ -16,11 +16,14 @@ DIR = Path(__file__).parent / "hasil_scraping"
 CGK = (-6.1256, 106.6559)
 BANDARA = {"BPN": (-1.2683, 116.8945), "DPS": (-8.7482, 115.1671), "KNO": (3.6422, 98.8854),
            "PKU": (0.4609, 101.4445), "SUB": (-7.3798, 112.7869), "UPG": (-5.0617, 119.5547),
-           "YIA": (-7.9055, 110.0573), "SIN": (1.3644, 103.9915), "KUL": (2.7456, 101.7099)}
+           "YIA": (-7.9055, 110.0573), "SIN": (1.3644, 103.9915), "KUL": (2.7456, 101.7099),
+           "BKK": (13.6900, 100.7501), "SGN": (10.8188, 106.6520), "HND": (35.5494, 139.7798),
+           "ICN": (37.4602, 126.4407), "SYD": (-33.9399, 151.1753), "DXB": (25.2532, 55.3657)}
 NAMA = {"BPN": "Balikpapan", "DPS": "Denpasar", "KNO": "Medan", "PKU": "Pekanbaru", "SUB": "Surabaya",
-        "UPG": "Makassar", "YIA": "Yogyakarta", "SIN": "Singapura", "KUL": "Kuala Lumpur"}
+        "UPG": "Makassar", "YIA": "Yogyakarta", "SIN": "Singapura", "KUL": "Kuala Lumpur",
+        "BKK": "Bangkok", "SGN": "Ho Chi Minh", "HND": "Tokyo", "ICN": "Seoul", "SYD": "Sydney", "DXB": "Dubai"}
 DOM = ["BPN", "DPS", "KNO", "PKU", "SUB", "UPG", "YIA"]
-LN = ["SIN", "KUL"]
+LN = ["SIN", "KUL", "BKK", "SGN", "HND", "ICN", "SYD", "DXB"]
 NORM = {"MES": "KNO", "JOG": "YIA"}
 
 
@@ -137,5 +140,8 @@ for b in rk.index:
 for i, w in enumerate([13] + [13] * len(URUT) + [13, 15], 1): ws.column_dimensions[get_column_letter(i)].width = w
 ws.freeze_panes = ws.cell(HDR + 2, 2)
 out = DIR / f"{datetime.now():%y%m%d}-Rp per km per Rute.xlsx"
+k = 2
+while out.exists():                               # jangan menimpa (mis. hasil edit manual)
+    out = DIR / f"{datetime.now():%y%m%d}-Rp per km per Rute ({k}).xlsx"; k += 1
 wb.save(out)
 print("OK:", out.name, "| baris terakhir:", ws.max_row, "| sheet:", wb.sheetnames)

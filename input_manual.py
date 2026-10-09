@@ -31,10 +31,24 @@ import pandas as pd
 
 OUTPUT_DIR = Path(__file__).parent / "hasil_scraping"
 DAYS_AHEAD = list(range(4, 89, 7))          # sama dengan scraper: 13 Jumat
-ROUTES = {                                   # 7 rute domestik (yang dipakai analisis)
+ROUTES_DOM = {                               # 7 rute domestik (yang dipakai analisis)
     "BPN": "Balikpapan", "DPS": "Denpasar-Bali", "KNO": "Medan", "PKU": "Pekanbaru",
     "SUB": "Surabaya",   "UPG": "Makassar",     "YIA": "Yogyakarta",
 }
+ROUTES_INT = {                               # internasional: bandara terbesar tiap negara
+    "SIN": "Singapore",  "KUL": "Kuala-Lumpur", "BKK": "Bangkok",   # Singapura, Malaysia, Thailand
+    "SGN": "Ho-Chi-Minh", "HND": "Tokyo",       "ICN": "Seoul",     # Vietnam, Jepang, Korea Selatan
+    "SYD": "Sydney",     "DXB": "Dubai",                            # Australia, Uni Emirat Arab
+}
+ROUTES = {**ROUTES_DOM, **ROUTES_INT}
+N_DOM, N_INT = 5, 3                          # jumlah Jumat per rute (diubah lewat --n / --n-int)
+
+
+def hari(kode: str) -> list:
+    """Daftar H+ untuk satu rute (internasional memakai lebih sedikit Jumat)."""
+    return DAYS_AHEAD[:N_INT] if kode in ROUTES_INT else DAYS_AHEAD[:N_DOM]
+
+
 COLS = ["scrape_date", "scrape_time", "destination", "h_plus", "travel_date",
         "airline", "jam_berangkat", "jam_tiba", "bandara_asal", "bandara_tujuan",
         "duration", "harga_display", "harga_angka"]
@@ -49,7 +63,7 @@ def senin_terakhir(d: datetime) -> datetime:
 def build_url(dest: str, date_str: str) -> str:
     kode = {"BPN": ("BPNC", "CITY"), "DPS": ("DPSC", "CITY"), "KNO": ("KNO", "AIRPORT"),
             "PKU": ("PKU", "AIRPORT"), "SUB": ("SUBC", "CITY"), "UPG": ("UPGC", "CITY"),
-            "YIA": ("YIA", "AIRPORT")}[dest]
+            "YIA": ("YIA", "AIRPORT")}.get(dest, (dest, "AIRPORT"))   # internasional: kode bandara apa adanya
     return ("https://www.tiket.com/id-id/flights/search"
             f"?d=JKTC&dType=CITY&a={kode[0]}&aType={kode[1]}"
             f"&class=economy&adult=1&type=depart&date={date_str}"
@@ -57,20 +71,17 @@ def build_url(dest: str, date_str: str) -> str:
 
 
 def worksheet(ref: datetime) -> None:
-    tgl = [(ref + timedelta(days=d)).strftime("%Y-%m-%d") for d in DAYS_AHEAD]
-    total = len(ROUTES) * len(tgl)
+    total = sum(len(hari(k)) for k in ROUTES)
     print(f"\nAcuan : {ref.strftime('%A, %d %B %Y')}")
-    print(f"Target: {len(tgl)} Jumat x {len(ROUTES)} rute = {total} halaman\n")
-    for d, t in zip(DAYS_AHEAD, tgl):
-        print(f"   H+{d:<3} {t}  ({(ref + timedelta(days=d)).strftime('%a')})")
-    print("\nBuka tiap URL di Chrome, tempel panen_browser.js di Console (Cmd+Option+J),")
-    print("lalu tempel hasilnya menumpuk ke satu file .txt\n")
+    print(f"Target: domestik {len(ROUTES_DOM)} rute x {N_DOM} Jumat + internasional {len(ROUTES_INT)} rute x {N_INT} Jumat = {total} halaman\n")
+    print("\nBuka tiap URL di Chrome, klik 📦 Panen, lalu 📋 Salin hasil di akhir.\n")
     n = 0
     for kode in ROUTES:
-        print(f"--- {kode} ({ROUTES[kode]}) ---")
-        for t in tgl:
+        print(f"--- {kode} ({ROUTES[kode]}){' [internasional]' if kode in ROUTES_INT else ''} ---")
+        for d in hari(kode):
             n += 1
-            print(f"{n:3}. {build_url(kode, t)}")
+            t = (ref + timedelta(days=d)).strftime("%Y-%m-%d")
+            print(f"{n:3}. H+{d:<3} {t}  {build_url(kode, t)}")
         print()
 
 
@@ -106,10 +117,10 @@ def simpan(data: dict, ref: datetime) -> None:
     baris = []
     now = datetime.now()
     for kode, angka in data.items():
-        if len(angka) != len(DAYS_AHEAD):
-            print(f"⚠  {kode}: {len(angka)} angka (diharapkan {len(DAYS_AHEAD)}) — "
+        if len(angka) != len(hari(kode)):
+            print(f"⚠  {kode}: {len(angka)} angka (diharapkan {len(hari(kode))}) — "
                   f"dipetakan berurutan sejauh yang ada")
-        for d, harga in zip(DAYS_AHEAD, angka):
+        for d, harga in zip(hari(kode), angka):
             if harga is None:
                 continue
             td = (ref + timedelta(days=d)).strftime("%Y-%m-%d")
@@ -241,14 +252,15 @@ def bookmarklet(nama_file: str) -> str:
 def buat_html(ref: datetime) -> Path:
     """Tulis worksheet.html: tombol bookmarklet + semua link rute x tanggal."""
     import html as _h
-    tgl = [(ref + timedelta(days=d)).strftime("%Y-%m-%d") for d in DAYS_AHEAD]
     bm_panen = _h.escape(bookmarklet("panen_browser.js"))
     bm_salin = _h.escape(bookmarklet("salin_hasil.js"))
     skrip = (Path(__file__).parent / "panen_browser.js").read_text()
     rows, n = [], 0
     for kode, nama in ROUTES.items():
-        rows.append(f'<h3>{kode} — {nama}</h3><ol start="{n+1}">')
-        for d, t in zip(DAYS_AHEAD, tgl):
+        label = " · internasional" if kode in ROUTES_INT else ""
+        rows.append(f'<h3>{kode} — {nama.replace("-", " ")}{label}</h3><ol start="{n+1}">')
+        for d in hari(kode):
+            t = (ref + timedelta(days=d)).strftime("%Y-%m-%d")
             n += 1
             rows.append(f'<li><a href="{_h.escape(build_url(kode, t))}" target="_blank">'
                         f'{t} &nbsp;<small>H+{d}</small></a></li>')
@@ -266,7 +278,8 @@ details{{margin-top:.6rem}} summary{{cursor:pointer;color:#555}}
 textarea{{width:100%;height:110px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #ccc;border-radius:6px;padding:.6rem}}
 </style>
 <h1>Worksheet panen harga — acuan Senin {ref:%d %B %Y}</h1>
-<p><b>{n} halaman</b> ({len(tgl)} Jumat × {len(ROUTES)} rute). Link yang sudah dikunjungi jadi abu-abu.</p>
+<p><b>{n} halaman</b> (domestik {N_DOM} Jumat × {len(ROUTES_DOM)} rute; internasional {N_INT} Jumat × {len(ROUTES_INT)} rute). Link yang sudah dikunjungi jadi abu-abu.</p>
+<p><small>Rute internasional BARU (BKK, SGN, HND, ICN, SYD, DXB): buka halaman pertama tiap rute dulu dan pastikan daftar penerbangan muncul. Kalau kosong atau kotak 📦 Panen merah, kode bandara di tiket.com perlu disesuaikan — kabari Claude.</small></p>
 
 <div class="box">
 <b>Pasang tombol (sekali saja, lewati kalau sudah terpasang):</b>
@@ -309,12 +322,14 @@ def main():
     ap.add_argument("--html", action="store_true", help="buat worksheet.html & buka di browser")
     ap.add_argument("--input", help="file berisi data (atau '-' untuk stdin)")
     ap.add_argument("--panen", help="file berisi keluaran panen_browser.js (atau '-' untuk stdin)")
-    ap.add_argument("--n", type=int, default=5, help="jumlah Jumat ke depan (default 5, maks 13)")
+    ap.add_argument("--n", type=int, default=5, help="jumlah Jumat untuk rute domestik (default 5, maks 13)")
+    ap.add_argument("--n-int", type=int, default=3, dest="n_int", help="jumlah Jumat untuk rute internasional (default 3)")
     ap.add_argument("--date", help="tanggal acuan YYYY-MM-DD (default: Senin terakhir)")
     a = ap.parse_args()
 
-    global DAYS_AHEAD
-    DAYS_AHEAD = DAYS_AHEAD[:max(1, min(a.n, len(DAYS_AHEAD)))]
+    global N_DOM, N_INT
+    N_DOM = max(1, min(a.n, len(DAYS_AHEAD)))
+    N_INT = max(1, min(a.n_int, len(DAYS_AHEAD)))
 
     ref = (datetime.strptime(a.date, "%Y-%m-%d") if a.date
            else senin_terakhir(datetime.now()))
