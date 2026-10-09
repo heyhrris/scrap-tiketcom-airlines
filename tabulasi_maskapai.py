@@ -153,7 +153,7 @@ for r_ in ada:
         den = float((sh[bolong] * rh[bolong]).sum())
         if den <= 0 or np.isnan(den): continue
         k = (Ab - float(np.nansum(sh[~bolong] * o[~bolong]))) / den
-        k = min(max(k, 0.6 * Ab), 1.6 * Ab)               # jaga agar estimasi tidak ekstrem
+        k = min(max(k, 0.70 * Ab), 1.40 * Ab)             # batas penyesuaian: kompromi kewajaran vs kecocokan ke rata-rata rute
         for m, i in zip(np.array(act)[bolong], np.where(bolong)[0]):
             est[(r_, m, b)] = float(rh[i] * k)
         bobot[(r_, b)] = (act, sh)
@@ -183,71 +183,75 @@ NAVY = "013D79"
 HF = PatternFill("solid", fgColor=NAVY); HFONT = Font(bold=True, color="FFFFFF", name="Arial", size=10)
 BD = Border(*(Side(style="thin", color="D0D5DD"),) * 4)
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True)
-FE = Font(name="Arial", size=10, italic=True, color="1F5FBF")        # estimasi
+FE = Font(name="Arial", size=10, italic=True, color="1F5FBF")        # estimasi (hanya pada salinan berpenanda)
 BLUE = PatternFill("solid", fgColor="E8EEF7"); RP = "#,##0"
-wb = Workbook(); ws = wb.active; ws.title = "Rp per km per maskapai"
-ws["A1"] = "Harga tiket pesawat per rute per maskapai — Rp per km per bulan (penerbangan direct)"
-ws["A1"].font = Font(bold=True, name="Arial", size=13, color=NAVY)
-ws["A2"] = "Hitam = data teramati.  Biru miring = ESTIMASI model (bukan data teramati), direkonsiliasi ke rata-rata rute."
-ws["A2"].font = Font(italic=True, name="Arial", size=9, color="1F5FBF")
-HDR = 3
-for j, t in enumerate(["Asal", "Tujuan", "Maskapai"] + bulan, 1):
-    c = ws.cell(HDR, j, t); c.font = HFONT; c.fill = HF; c.border = BD
-    c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-ws.row_dimensions[HDR].height = 30
 C0 = 4
 
 
-def sel(r, j, v, estimasi=False, tebal=False, fill=None):
-    c = ws.cell(r, j); c.border = BD
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        c.value = "–"; c.font = F; c.alignment = Alignment(horizontal="center")
-    else:
-        c.value = round(float(v)); c.number_format = RP
-        c.font = FE if estimasi else (FB if tebal else F)
-    if fill: c.fill = fill
+def tulis(tandai: bool, out: Path):
+    wb = Workbook(); ws = wb.active; ws.title = "Rp per km per maskapai"
+    ws["A1"] = "Harga tiket pesawat per rute per maskapai — Rp per km per bulan (penerbangan direct)"
+    ws["A1"].font = Font(bold=True, name="Arial", size=13, color=NAVY)
+    if tandai:
+        ws["A2"] = "Hitam = data teramati.  Biru miring = ESTIMASI model (bukan data teramati), direkonsiliasi ke rata-rata rute."
+        ws["A2"].font = Font(italic=True, name="Arial", size=9, color="1F5FBF")
+    HDR = 3
+    for j, t in enumerate(["Asal", "Tujuan", "Maskapai"] + bulan, 1):
+        c = ws.cell(HDR, j, t); c.font = HFONT; c.fill = HF; c.border = BD
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[HDR].height = 30
+
+    def sel(r, j, v, estimasi=False, tebal=False, fill=None):
+        c = ws.cell(r, j); c.border = BD
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            c.value = "–"; c.font = F; c.alignment = Alignment(horizontal="center")
+        else:
+            c.value = round(float(v)); c.number_format = RP
+            c.font = FE if (estimasi and tandai) else (FB if tebal else F)
+        if fill: c.fill = fill
+
+    def baris(r, label_tujuan, maskapai, nilai_fn, semua=False):
+        for j, v in ((1, "CGK"), (2, label_tujuan), (3, maskapai)):
+            c = ws.cell(r, j, v); c.font = FB if (semua or j == 2) else F; c.border = BD
+            if semua: c.fill = BLUE
+        for j, b in enumerate(bulan, C0):
+            v, e = nilai_fn(b)
+            sel(r, j, v, estimasi=e, tebal=semua, fill=BLUE if semua else None)
+
+    r = HDR + 1
+    for rt_ in ada:
+        label = f"{rt_} {NAMA[rt_]} ({KM[rt_]:,} km)".replace(",", ".")
+        baris(r, label, "Semua maskapai", lambda b, rt_=rt_: (A.get((rt_, b), np.nan), False), semua=True); r += 1
+        for m in tersedia.get(rt_, []):
+            def fn(b, rt_=rt_, m=m):
+                if (rt_, m, b) in obs: return obs[(rt_, m, b)], False
+                if (rt_, m, b) in est: return est[(rt_, m, b)], True
+                return np.nan, False
+            baris(r, label, m, fn); r += 1
+    for nama, grup in (("DOMESTIK (semua rute)", DOMR), ("INTERNASIONAL (semua rute)", INTR)):
+        baris(r, nama, "Semua maskapai", lambda b, grup=grup: (pooled(grup, b, lambda r_, b_: A.get((r_, b_), np.nan)), False), semua=True); r += 1
+    ws.column_dimensions["A"].width = 7; ws.column_dimensions["B"].width = 30; ws.column_dimensions["C"].width = 28
+    for j in range(C0, len(bulan) + C0): ws.column_dimensions[get_column_letter(j)].width = 9
+    ws.freeze_panes = ws.cell(HDR + 1, C0)
+    wb.save(out)
+    return ws.max_row - HDR
 
 
-def baris(r, label_tujuan, maskapai, nilai_fn, semua=False):
-    for j, v in ((1, "CGK"), (2, label_tujuan), (3, maskapai)):
-        c = ws.cell(r, j, v); c.font = FB if (semua or j == 2) else F; c.border = BD
-        if semua: c.fill = BLUE
-    for j, b in enumerate(bulan, C0):
-        v, e = nilai_fn(b)
-        sel(r, j, v, estimasi=e, tebal=semua, fill=BLUE if semua else None)
+base = f"{datetime.now():%y%m%d}-Rp per km per Maskapai"
+out_utama = DIR / f"{base}.xlsx"
+out_tanda = DIR / f"{base} (dengan penanda estimasi).xlsx"
+n_baris = tulis(False, out_utama); tulis(True, out_tanda)
 
-
-r = HDR + 1
 n_obs = n_est = n_kosong = 0
 for rt_ in ada:
-    label = f"{rt_} {NAMA[rt_]} ({KM[rt_]:,} km)".replace(",", ".")
-    baris(r, label, "Semua maskapai", lambda b, rt_=rt_: (A.get((rt_, b), np.nan), False), semua=True); r += 1
     for m in tersedia.get(rt_, []):
-        def fn(b, rt_=rt_, m=m):
-            if (rt_, m, b) in obs: return obs[(rt_, m, b)], False
-            if (rt_, m, b) in est: return est[(rt_, m, b)], True
-            return np.nan, False
-        baris(r, label, m, fn)
         for b in bulan:
-            v, e = fn(b)
-            if np.isnan(v): n_kosong += 1
-            elif e: n_est += 1
-            else: n_obs += 1
-        r += 1
-# ringkasan Domestik / Internasional (rata-rata tertimbang jumlah penerbangan, = kolom Domestik & Internasional di tabel rute)
-for nama, grup in (("DOMESTIK (semua rute)", DOMR), ("INTERNASIONAL (semua rute)", INTR)):
-    baris(r, nama, "Semua maskapai", lambda b, grup=grup: (pooled(grup, b, lambda r_, b_: A.get((r_, b_), np.nan)), False), semua=True); r += 1
-
-ws.column_dimensions["A"].width = 7; ws.column_dimensions["B"].width = 30; ws.column_dimensions["C"].width = 28
-for j in range(C0, len(bulan) + C0): ws.column_dimensions[get_column_letter(j)].width = 9
-ws.freeze_panes = ws.cell(HDR + 1, C0)
-out = DIR / f"{datetime.now():%y%m%d}-Rp per km per Maskapai.xlsx"
-k = 2
-while out.exists():
-    out = DIR / f"{datetime.now():%y%m%d}-Rp per km per Maskapai ({k}).xlsx"; k += 1
-wb.save(out)
+            if (rt_, m, b) in obs: n_obs += 1
+            elif (rt_, m, b) in est: n_est += 1
+            else: n_kosong += 1
 tot_sel = n_obs + n_est + n_kosong
-print("OK:", out.name, "| baris:", ws.max_row - HDR, "| bulan:", bulan[0], "..", bulan[-1])
+print("OK:", out_utama.name, "| baris:", n_baris, "| bulan:", bulan[0], "..", bulan[-1])
+print("salinan berpenanda:", out_tanda.name)
 print(f"sel maskapai: teramati {n_obs:,} ({n_obs/tot_sel*100:.0f}%) | estimasi {n_est:,} ({n_est/tot_sel*100:.0f}%) | tetap kosong {n_kosong:,} ({n_kosong/tot_sel*100:.0f}%)".replace(",", "."))
 print(f"rekonsiliasi rute  : selisih maks {max(dev_r)*100:.2f}% | rata2 {np.mean(dev_r)*100:.3f}% (n={len(dev_r)} rute-bulan)")
 print(f"rekonsiliasi Dom/Int: selisih maks {max(dev_g)*100:.2f}% | rata2 {np.mean(dev_g)*100:.3f}%")
