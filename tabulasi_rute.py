@@ -91,8 +91,8 @@ BD = Border(*(Side(style="thin", color="D0D5DD"),) * 4)
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True)
 GREY = Font(name="Arial", size=10, italic=True, color="98A2B3")
 RP = "#,##0"
-ASAL = "Jakarta"
-KET_ASAL = "Asal: Jakarta (CGK dan HLP); jarak dihitung dari CGK. Semua rute sekali jalan Jakarta → tujuan."
+ASAL = "CGK Jakarta"
+KET_ASAL = "Asal: Jakarta, kode CGK (sebagian data tiket.com berangkat dari HLP/Halim, ±13%); jarak dihitung dari CGK. Semua rute sekali jalan Jakarta → tujuan."
 
 
 def hdr(ws, r, kolom, c0=1):
@@ -150,7 +150,7 @@ for judul, tabel, extra, fmt in (("Rp per km per bulan", rk, semua, "rp"), ("Jum
         ws["A2"] = f"Abu-abu miring = sampel < {MIN_N} penerbangan. Kolom 'Sumber' menunjukkan asal data bulan itu."
         ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
     ws["A3"] = KET_ASAL; ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
-    hdr(ws, 4, ["Bulan"] + [f"Jakarta →\n{r} {NAMA[r]}" for r in DOM] + ["Semua rute (domestik)", "Sumber"])
+    hdr(ws, 4, ["Bulan"] + [f"CGK →\n{r} {NAMA[r]}" for r in DOM] + ["Semua rute (domestik)", "Sumber"])
     ws.row_dimensions[4].height = 32
     for i, b in enumerate(tabel.index, 5):
         ws.cell(i, 1, b).font = FB; ws.cell(i, 1).border = BD
