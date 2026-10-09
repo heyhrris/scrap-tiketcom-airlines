@@ -89,12 +89,13 @@ NAVY = "013D79"; MIN_N = 30
 HF = PatternFill("solid", fgColor=NAVY); HFONT = Font(bold=True, color="FFFFFF", name="Arial", size=10)
 BD = Border(*(Side(style="thin", color="D0D5DD"),) * 4)
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True)
-GREY = Font(name="Arial", size=10, italic=True, color="98A2B3")
+GREY = Font(name="Arial", size=10)          # sel kosong ("–") dan sampel tipis: tetap hitam, tidak miring
 BLUE = PatternFill("solid", fgColor="E8EEF7")
 RP = "#,##0"
 URUT = DOM + LN
 NC = len(URUT) + 3                                    # Bulan + 9 rute + Domestik + Internasional
 
+df = df[df["bulan"] <= "2026-09"]                  # data dipotong s.d. September 2026
 rk = df.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="mean").reindex(columns=URUT)
 nn = df.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="size").reindex(columns=URUT)
 dom = df[df.rute.isin(DOM)].groupby("bulan")["rpkm"].mean()
@@ -117,7 +118,7 @@ def sel(r, j, v, n=None, tebal=False):
         c.value = "–"; c.font = GREY; c.alignment = Alignment(horizontal="center")
     else:
         c.value = round(float(v)); c.number_format = RP
-        c.font = FB if tebal else (GREY if (n is not None and n < MIN_N) else F)
+        c.font = FB if tebal else F
 
 
 r = HDR + 1
