@@ -91,6 +91,8 @@ BD = Border(*(Side(style="thin", color="D0D5DD"),) * 4)
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True)
 GREY = Font(name="Arial", size=10, italic=True, color="98A2B3")
 RP = "#,##0"
+ASAL = "Jakarta"
+KET_ASAL = "Asal: Jakarta (CGK dan HLP); jarak dihitung dari CGK. Semua rute sekali jalan Jakarta → tujuan."
 
 
 def hdr(ws, r, kolom, c0=1):
@@ -111,23 +113,24 @@ ws["A1"].font = Font(bold=True, name="Arial", size=13, color=NAVY)
 ws["A2"] = (f"Sumber: tiket.com, keberangkatan {tk['tanggal'].min():%d %b %Y} – {tk['tanggal'].max():%d %b %Y}. "
             "Diurutkan dari Rp/km termurah.")
 ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
-hdr(ws, 4, ["Peringkat", "Rute", "Kota", "Jenis", "Jarak (km)", "Jumlah penerbangan", "Harga rata-rata (Rp)",
+ws["A3"] = KET_ASAL; ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
+hdr(ws, 4, ["Peringkat", "Asal", "Tujuan", "Kota tujuan", "Jenis", "Jarak (km)", "Jumlah penerbangan", "Harga rata-rata (Rp)",
             "Rp/km rata-rata", "Rp/km median", "Rp/km minimum", "Rp/km maksimum"])
 ws.row_dimensions[4].height = 32
 r0 = 5
 for jenis, daftar in (("Domestik", DOM), ("Internasional", LN)):
     sub = ring[ring.rute.isin(daftar)].sort_values("rp")
     for k, r in enumerate(sub.itertuples(), 1):
-        v = [k, r.rute, NAMA[r.rute], jenis, KM[r.rute], r.n, round(r.harga), round(r.rp), round(r.med), round(r.mn), round(r.mx)]
+        v = [k, ASAL, r.rute, NAMA[r.rute], jenis, KM[r.rute], r.n, round(r.harga), round(r.rp), round(r.med), round(r.mn), round(r.mx)]
         for j, x in enumerate(v, 1):
-            c = ws.cell(r0, j, x); c.border = BD; c.font = FB if j in (2, 8) else F
-            if j >= 5: c.number_format = RP
+            c = ws.cell(r0, j, x); c.border = BD; c.font = FB if j in (3, 9) else F
+            if j >= 6: c.number_format = RP
             if j == 1: c.alignment = Alignment(horizontal="center")
         r0 += 1
     r0 += 1
 ws.cell(r0, 1, "Rute internasional (SIN, KUL) hanya terambil sampai Agustus 2026 saat scraping otomatis masih berjalan; "
                "harga rata-rata yang lebih tinggi dipengaruhi maskapai full-service.").font = Font(italic=True, name="Arial", size=9, color="667085")
-lebar(ws, [10, 8, 15, 14, 11, 14, 16, 14, 13, 13, 13]); ws.freeze_panes = "A5"
+lebar(ws, [10, 10, 9, 15, 14, 11, 14, 16, 14, 13, 13, 13]); ws.freeze_panes = "A5"
 
 # ---- Lembar 2 & 3: Rp/km & n per bulan (domestik)
 dm = df[df.rute.isin(DOM)]
@@ -146,7 +149,8 @@ for judul, tabel, extra, fmt in (("Rp per km per bulan", rk, semua, "rp"), ("Jum
     if fmt == "rp":
         ws["A2"] = f"Abu-abu miring = sampel < {MIN_N} penerbangan. Kolom 'Sumber' menunjukkan asal data bulan itu."
         ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
-    hdr(ws, 4, ["Bulan"] + [f"{r}\n{NAMA[r]}" for r in DOM] + ["Semua rute (domestik)", "Sumber"])
+    ws["A3"] = KET_ASAL; ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
+    hdr(ws, 4, ["Bulan"] + [f"Jakarta →\n{r} {NAMA[r]}" for r in DOM] + ["Semua rute (domestik)", "Sumber"])
     ws.row_dimensions[4].height = 32
     for i, b in enumerate(tabel.index, 5):
         ws.cell(i, 1, b).font = FB; ws.cell(i, 1).border = BD
@@ -166,6 +170,8 @@ for judul, tabel, extra, fmt in (("Rp per km per bulan", rk, semua, "rp"), ("Jum
 ws = wb.create_sheet("Catatan metode")
 ws["A1"] = "Catatan metode & batasan data"; ws["A1"].font = Font(bold=True, name="Arial", size=12, color=NAVY)
 cat = [
+ ("Asal & arah", "Semua rute sekali jalan dari Jakarta ke kota tujuan (tidak ada arah sebaliknya). Data Traveloka seluruhnya berangkat dari CGK; "
+   "data tiket.com mencakup semua bandara Jakarta (sekitar 87% CGK, 13% HLP/Halim). Jarak selalu dihitung dari CGK; selisihnya ke HLP kurang dari 2% sehingga tidak mengubah peringkat."),
  ("Rumus", "Rp/km = harga tiket ÷ jarak lurus (great-circle) Jakarta (CGK) → bandara tujuan, dirata-rata per kelompok."),
  ("Cakupan", "Hanya penerbangan DIRECT. Penerbangan transit dikeluarkan karena menempuh jarak jauh lebih panjang dari jarak lurus, sehingga Rp/km-nya menyesatkan."),
  ("Jarak (km)", "; ".join(f"{r} {KM[r]:,}".replace(",", ".") for r in DOM + LN) + ". Jarak lurus, bukan jarak rute terbang."),
