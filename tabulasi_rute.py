@@ -61,7 +61,7 @@ def baca_tiket(path):
     direct = d["duration"].astype(str).str.contains("Langsung", case=False, na=False) if "duration" in d.columns else True
     return pd.DataFrame({"tanggal": t, "rute": d["destination"].astype(str).str.upper().replace(NORM),
                          "direct": direct, "harga": pd.to_numeric(d["harga_angka"], errors="coerce"),
-                         "sumber": "tiket.com"})
+                         "sumber": "Otomatis" if "duration" in d.columns else "Manual (≈termurah)"})
 
 
 frames = []
@@ -79,7 +79,7 @@ df["km"] = df["rute"].map(KM); df["rpkm"] = df["harga"] / df["km"]
 df["bulan"] = df["tanggal"].dt.to_period("M").astype(str)
 
 # ---- ringkasan terbaru: tiket.com semua periode & per bulan terbaru
-tk = df[df["sumber"] == "tiket.com"]
+tk = df[df["sumber"] == "Otomatis"]
 tk = tk[tk["tanggal"] >= "2026-05-01"]
 ring = tk.groupby("rute").agg(n=("rpkm", "size"), harga=("harga", "mean"), rp=("rpkm", "mean"),
                               med=("rpkm", "median"), mn=("rpkm", "min"), mx=("rpkm", "max"),
@@ -91,6 +91,7 @@ BD = Border(*(Side(style="thin", color="D0D5DD"),) * 4)
 F = Font(name="Arial", size=10); FB = Font(name="Arial", size=10, bold=True)
 GREY = Font(name="Arial", size=10, italic=True, color="98A2B3")
 RP = "#,##0"
+AMBER = PatternFill("solid", fgColor="FFF4D6")
 ASAL = "CGK Jakarta"
 KET_ASAL = "Asal: Jakarta, kode CGK (sebagian data tiket.com berangkat dari HLP/Halim, ±13%); jarak dihitung dari CGK. Semua rute sekali jalan Jakarta → tujuan."
 
@@ -110,7 +111,7 @@ wb = Workbook()
 ws = wb.active; ws.title = "Ringkasan per rute"
 ws["A1"] = "Harga tiket pesawat per rute — Rp per km (penerbangan direct, Jakarta → tujuan)"
 ws["A1"].font = Font(bold=True, name="Arial", size=13, color=NAVY)
-ws["A2"] = (f"Sumber: tiket.com, keberangkatan {tk['tanggal'].min():%d %b %Y} – {tk['tanggal'].max():%d %b %Y}. "
+ws["A2"] = (f"Sumber: tiket.com scraping otomatis (semua penerbangan direct), keberangkatan {tk['tanggal'].min():%d %b %Y} – {tk['tanggal'].max():%d %b %Y}. "
             "Diurutkan dari Rp/km termurah.")
 ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
 ws["A3"] = KET_ASAL; ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
@@ -133,38 +134,87 @@ ws.cell(r0, 1, "Rute internasional (SIN, KUL) hanya terambil sampai Agustus 2026
 lebar(ws, [10, 10, 9, 15, 14, 11, 14, 16, 14, 13, 13, 13]); ws.freeze_panes = "A5"
 
 # ---- Lembar 2 & 3: Rp/km & n per bulan (domestik)
+MCOL = DOM + LN                                  # bulanan memuat 9 rute; "Semua rute" tetap domestik saja
 dm = df[df.rute.isin(DOM)]
-rk = dm.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="mean")[DOM]
-nn = dm.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="size")[DOM]
+dall = df[df.rute.isin(MCOL)]
+rk = dall.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="mean").reindex(columns=MCOL)
+nn = dall.pivot_table(index="bulan", columns="rute", values="rpkm", aggfunc="size").reindex(columns=MCOL)
 semua = dm.groupby("bulan")["rpkm"].mean()
 ns = dm.groupby("bulan").size()
-src = dm.groupby("bulan")["sumber"].agg(lambda s: "tiket.com" if (s == "tiket.com").all()
-                                         else ("Traveloka" if (s == "Traveloka").all() else "campuran"))
+src = dm.groupby("bulan")["sumber"].agg(lambda x: "+".join(sorted(set(x))))
 MIN_N = 30
 for judul, tabel, extra, fmt in (("Rp per km per bulan", rk, semua, "rp"), ("Jumlah sampel per bulan", nn, ns, "n")):
     ws = wb.create_sheet(judul)
-    ws["A1"] = ("Rata-rata Rp/km per rute per bulan keberangkatan (direct, domestik)" if fmt == "rp"
+    ws["A1"] = ("Rata-rata Rp/km per rute per bulan keberangkatan (direct, 7 domestik + SIN & KUL)" if fmt == "rp"
                 else "Jumlah penerbangan direct yang dihitung per rute per bulan")
     ws["A1"].font = Font(bold=True, name="Arial", size=12, color=NAVY)
     if fmt == "rp":
-        ws["A2"] = f"Abu-abu miring = sampel < {MIN_N} penerbangan. Kolom 'Sumber' menunjukkan asal data bulan itu."
+        ws["A2"] = f"Abu-abu miring = sampel < {MIN_N} penerbangan. '–' = tidak ada data. SIN & KUL hanya terambil s.d. Agu 2026. Baris KUNING = bulan yang memuat data Manual: satu harga per rute-tanggal yang setara harga TERMURAH (±80% dari rata-rata semua direct), sehingga tidak sebanding langsung dengan baris lain."
         ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
     ws["A3"] = KET_ASAL; ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
-    hdr(ws, 4, ["Bulan"] + [f"CGK →\n{r} {NAMA[r]}" for r in DOM] + ["Semua rute (domestik)", "Sumber"])
+    hdr(ws, 4, ["Bulan"] + [f"CGK →\n{r} {NAMA[r]}" for r in MCOL] + ["Semua rute\n(domestik saja)", "Sumber"])
     ws.row_dimensions[4].height = 32
     for i, b in enumerate(tabel.index, 5):
         ws.cell(i, 1, b).font = FB; ws.cell(i, 1).border = BD
-        for j, r in enumerate(DOM, 2):
+        for j, r in enumerate(MCOL, 2):
             v = tabel.loc[b, r]; c = ws.cell(i, j); c.border = BD
             if pd.isna(v):
                 c.value = "–"; c.font = GREY; c.alignment = Alignment(horizontal="center")
             else:
                 c.value = round(float(v)) if fmt == "rp" else int(v); c.number_format = RP
                 c.font = GREY if (fmt == "rp" and nn.loc[b, r] < MIN_N) else F
-        c = ws.cell(i, len(DOM) + 2, round(float(extra[b])) if fmt == "rp" else int(extra[b]))
+        c = ws.cell(i, len(MCOL) + 2, round(float(extra[b])) if fmt == "rp" else int(extra[b]))
         c.number_format = RP; c.font = FB; c.border = BD
-        c = ws.cell(i, len(DOM) + 3, src[b]); c.font = F; c.border = BD
-    lebar(ws, [10] + [13] * len(DOM) + [20, 12]); ws.freeze_panes = "B5"
+        c = ws.cell(i, len(MCOL) + 3, src[b]); c.font = F; c.border = BD
+        if "Manual" in src[b]:
+            for jj in range(1, len(MCOL) + 4): ws.cell(i, jj).fill = AMBER
+    lebar(ws, [10] + [13] * len(MCOL) + [20, 12]); ws.freeze_panes = "B5"
+
+# ---- Lembar tahunan: seluruh arsip, mulai tahun terlama
+df["tahun"] = df["tanggal"].dt.year
+URUT = DOM + LN
+ty = df.pivot_table(index="rute", columns="tahun", values="rpkm", aggfunc="mean").reindex(URUT)
+ny = df.pivot_table(index="rute", columns="tahun", values="rpkm", aggfunc="size").reindex(URUT)
+dom_y = df[df.rute.isin(DOM)].groupby("tahun")["rpkm"].mean()
+dom_n = df[df.rute.isin(DOM)].groupby("tahun").size()
+per = df.groupby("tahun")["bulan"].agg(lambda b: f"{b.min()} s.d. {b.max()}")
+tahun = list(ty.columns)
+ws = wb.create_sheet("Rp per km per tahun", 1)
+ws["A1"] = f"Rata-rata Rp/km per rute per tahun keberangkatan, {tahun[0]}–{tahun[-1]} (direct)"
+ws["A1"].font = Font(bold=True, name="Arial", size=12, color=NAVY)
+ws["A2"] = KET_ASAL; ws["A2"].font = Font(italic=True, name="Arial", size=9, color="667085")
+ws["A3"] = ("Perhatian: 2022 dan sebagian 2023 serta Nov 2025–Apr 2026 berasal dari data Manual (harga termurah), sedangkan Traveloka "
+            "dan tiket.com otomatis berisi rata-rata semua penerbangan direct — definisinya berbeda, jadi selisih antar tahun tidak murni perubahan harga. "
+            "Tahun pertama (2022) dan terakhir (2026) tidak penuh 12 bulan; lihat baris 'Periode data'.")
+ws["A3"].font = Font(italic=True, name="Arial", size=9, color="667085")
+hdr(ws, 5, ["Asal", "Tujuan", "Kota tujuan", "Jarak (km)"] + [f"Rp/km\n{t}" for t in tahun] + [f"n\n{t}" for t in tahun])
+ws.row_dimensions[5].height = 32
+i = 6
+for r in URUT:
+    for j, v in enumerate([ASAL, r, NAMA[r], KM[r]], 1):
+        c = ws.cell(i, j, v); c.font = FB if j == 2 else F; c.border = BD
+        if j == 4: c.number_format = RP
+    for k, t in enumerate(tahun):
+        a = ws.cell(i, 5 + k); b = ws.cell(i, 5 + len(tahun) + k); a.border = b.border = BD
+        v = ty.loc[r, t]
+        if pd.isna(v):
+            a.value = b.value = "–"; a.font = b.font = GREY; a.alignment = b.alignment = Alignment(horizontal="center")
+        else:
+            a.value = round(float(v)); b.value = int(ny.loc[r, t]); a.number_format = b.number_format = RP
+            a.font = GREY if ny.loc[r, t] < MIN_N else F; b.font = F
+    i += 1
+for j, v in enumerate(["", "", "Semua rute domestik", ""], 1):
+    c = ws.cell(i, j, v); c.font = FB; c.border = BD
+for k, t in enumerate(tahun):
+    a = ws.cell(i, 5 + k, round(float(dom_y[t]))); b = ws.cell(i, 5 + len(tahun) + k, int(dom_n[t]))
+    a.number_format = b.number_format = RP; a.font = b.font = FB; a.border = b.border = BD
+i += 1
+c = ws.cell(i, 3, "Periode data"); c.font = Font(italic=True, name="Arial", size=9, color="667085")
+for k, t in enumerate(tahun):
+    c = ws.cell(i, 5 + k, per[t]); c.font = Font(italic=True, name="Arial", size=8, color="667085")
+    c.alignment = Alignment(wrap_text=True, horizontal="center")
+ws.row_dimensions[i].height = 26
+lebar(ws, [13, 8, 20, 11] + [12] * len(tahun) * 2); ws.freeze_panes = "E6"
 
 # ---- Lembar 4: catatan
 ws = wb.create_sheet("Catatan metode")
@@ -178,10 +228,14 @@ cat = [
  ("Mengapa rute pendek mahal per km", "Biaya tetap per penerbangan (pajak bandara, ground handling) tersebar ke jarak yang lebih pendek, "
    "sehingga rute seperti Yogyakarta (424 km) selalu tinggi per km walaupun harga totalnya tidak mahal. Bandingkan antar rute dengan hati-hati; "
    "perubahan antar waktu pada rute yang sama lebih bermakna."),
- ("Sumber & periode", "Arsip Traveloka (Agu 2022 – 2025) dan tiket.com (2026). Dua sumber memiliki cakupan dan komposisi harga berbeda, "
-   "sehingga ada patahan seri di sekitar Mei 2026 — lihat kolom 'Sumber'. Jangan membaca selisih Apr→Mei 2026 sebagai kenaikan harga murni."),
- ("Kenaikan 2026", "Lonjakan Rp/km sejak Mei 2026 bertepatan dengan dua hal: pergantian sumber data dan kenaikan harga avtur akibat guncangan April 2026. "
-   "Dengan data yang ada keduanya tidak bisa dipisahkan sepenuhnya."),
+ ("Sumber & periode", "Tiga jenis data: (1) Traveloka (Okt 2023 – Okt 2025): rata-rata semua penerbangan direct. (2) tiket.com otomatis (Mei 2026 –): rata-rata semua "
+   "penerbangan direct. (3) tiket.com Manual (Agu 2022 – Sep 2023 dan Nov 2025 – Apr 2026): satu harga per rute per tanggal, ±1 tanggal berbeda tiap pencatatan. "
+   "Kolom 'Sumber' pada lembar bulanan menunjukkan asal tiap bulan; baris kuning = memuat data Manual."),
+ ("Data Manual ≈ termurah", "Pada perbandingan 36 pasang rute-tanggal, harga Manual = 1,04× harga direct termurah, tetapi hanya ±0,80× rata-rata semua direct. "
+   "Karena itu angka dari periode Manual lebih rendah secara struktural daripada angka periode lain, terlepas dari pergerakan harga sebenarnya."),
+ ("Kenaikan 2026", "Lonjakan Rp/km dari Apr ke Mei 2026 (≈+36%) tidak boleh dibaca sebagai kenaikan harga murni: pada bulan itu definisi data berganti dari Manual (≈termurah) "
+   "ke otomatis (rata-rata semua direct), yang saja sudah menaikkan angka ±25%. Di waktu yang sama harga avtur melonjak akibat guncangan April 2026, sehingga porsi kenaikan riilnya "
+   "tidak dapat dipisahkan. Bandingkan hanya bulan-bulan dalam satu jenis data."),
  ("Sampel tipis", f"Angka dengan jumlah observasi < {MIN_N} ditulis abu-abu miring. Periode Okt 2025 – Apr 2026 memang bersampel tipis (≈110–140 penerbangan per bulan)."),
  ("Harga", "Harga tampil untuk 1 penumpang ekonomi sekali jalan; bukan harga tiket yang benar-benar terjual. Penerbangan yang sama dapat terambil di beberapa minggu; semua observasi dirata-rata."),
 ]
