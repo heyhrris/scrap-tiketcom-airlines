@@ -30,6 +30,7 @@ NORM = {"MES": "KNO", "JOG": "YIA"}
 MIN_N = 5          # sel bulanan dengan < 5 penerbangan tidak ditampilkan ("–")
 MIN_TOTAL = 30     # kombinasi rute-maskapai dengan total < 30 penerbangan tidak dimuat
 SAMPAI = "2026-09"
+AWAL = "2022-08"      # bulan pertama di tabel rute (data manual, belum ada nama maskapai)
 
 
 def hav(a, b):
@@ -96,7 +97,7 @@ df = pd.concat([tv, tk], ignore_index=True)
 df = df[df["bulan"] <= SAMPAI].copy()
 df["rpkm"] = df["harga"] / df["rute"].map(KM)
 ident = df[df["maskapai"].notna()]
-bulan = [str(p) for p in pd.period_range(ident["bulan"].min(), SAMPAI, freq="M")]
+bulan = [str(p) for p in pd.period_range(AWAL, SAMPAI, freq="M")]      # mulai dari data terlama (2022); baris maskapai kosong sebelum Okt 2023
 ada = [r for r in URUT if r in set(df["rute"])]
 pm = ident.groupby(["rute", "maskapai", "bulan"])["rpkm"].agg(["mean", "size"])
 tot = ident.groupby(["rute", "maskapai"]).size()
