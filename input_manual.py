@@ -41,7 +41,7 @@ ROUTES_INT = {                               # internasional: bandara terbesar t
     "SYD": "Sydney",     "DXB": "Dubai",                            # Australia, Uni Emirat Arab
 }
 ROUTES = {**ROUTES_DOM, **ROUTES_INT}
-N_DOM, N_INT = 5, 3                          # jumlah Jumat per rute (diubah lewat --n / --n-int)
+N_DOM, N_INT = 5, 5                          # jumlah Jumat per rute (diubah lewat --n / --n-int)
 
 
 def hari(kode: str) -> list:
@@ -340,7 +340,7 @@ def main():
     ap.add_argument("--input", help="file berisi data (atau '-' untuk stdin)")
     ap.add_argument("--panen", help="file berisi keluaran panen_browser.js (atau '-' untuk stdin)")
     ap.add_argument("--n", type=int, default=5, help="jumlah Jumat untuk rute domestik (default 5, maks 13)")
-    ap.add_argument("--n-int", type=int, default=3, dest="n_int", help="jumlah Jumat untuk rute internasional (default 3)")
+    ap.add_argument("--n-int", type=int, default=5, dest="n_int", help="jumlah Jumat untuk rute internasional (default 5)")
     ap.add_argument("--date", help="tanggal acuan YYYY-MM-DD (default: Senin terakhir)")
     a = ap.parse_args()
 
