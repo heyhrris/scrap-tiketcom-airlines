@@ -262,7 +262,8 @@ def buat_html(ref: datetime) -> Path:
         for d in hari(kode):
             t = (ref + timedelta(days=d)).strftime("%Y-%m-%d")
             n += 1
-            rows.append(f'<li><a href="{_h.escape(build_url(kode, t))}" target="_blank">'
+            rows.append(f'<li><input type="checkbox" data-k="{kode}|{t}"> '
+                        f'<a href="{_h.escape(build_url(kode, t))}" target="_blank">'
                         f'{t} &nbsp;<small>H+{d}</small></a></li>')
         rows.append("</ol>")
     doc = f"""<!doctype html><meta charset="utf-8"><title>Worksheet {ref:%d %b %Y}</title>
@@ -270,7 +271,7 @@ def buat_html(ref: datetime) -> Path:
 body{{font:15px/1.6 -apple-system,system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem;color:#222}}
 h1{{font-size:20px}} h3{{margin:1.4rem 0 .3rem;font-size:15px;color:#05a}}
 ol{{margin:.2rem 0 .2rem 1.2rem;padding:0}} li{{margin:.15rem 0}} ol.l li{{margin:.35rem 0}}
-a{{color:#06c}} a:visited{{color:#999}}
+a{{color:#06c}} li.ok a{{color:#999;text-decoration:line-through}} li.ok{{color:#999}} input[type=checkbox]{{margin-right:.4rem}}
 .box{{background:#f6f7f9;border:1px solid #e2e4e8;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}}
 .bm{{display:inline-block;margin:.3rem .6rem .3rem 0;padding:.5rem 1rem;border:2px dashed #06c;border-radius:8px;
      background:#fff;color:#06c !important;font-weight:600;text-decoration:none;cursor:grab}}
@@ -278,7 +279,7 @@ details{{margin-top:.6rem}} summary{{cursor:pointer;color:#555}}
 textarea{{width:100%;height:110px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #ccc;border-radius:6px;padding:.6rem}}
 </style>
 <h1>Worksheet panen harga — acuan Senin {ref:%d %B %Y}</h1>
-<p><b>{n} halaman</b> (domestik {N_DOM} Jumat × {len(ROUTES_DOM)} rute; internasional {N_INT} Jumat × {len(ROUTES_INT)} rute). Link yang sudah dikunjungi jadi abu-abu.</p>
+<p><b>{n} halaman</b> (domestik {N_DOM} Jumat × {len(ROUTES_DOM)} rute; internasional {N_INT} Jumat × {len(ROUTES_INT)} rute). Centang = sudah dipanen (klik link otomatis mencentang; hapus centang kalau gagal). <b id="hit"></b></p>
 <p><small>Rute internasional BARU (BKK, SGN, HND, ICN, SYD, DXB): buka halaman pertama tiap rute dulu dan pastikan daftar penerbangan muncul. Kalau kosong atau kotak 📦 Panen merah, kode bandara di tiket.com perlu disesuaikan — kabari Claude.</small></p>
 
 <div class="box">
@@ -310,6 +311,22 @@ hapus tombol lama di bookmark bar lalu seret ulang dari worksheet terbaru.</smal
 <textarea readonly>{_h.escape(skrip)}</textarea></details>
 </div>
 {''.join(rows)}
+<script>
+const KEY = 'panen_{ref:%y%m%d}';
+let st = {{}}; try {{ st = JSON.parse(localStorage.getItem(KEY) || '{{}}'); }} catch (e) {{}}
+const boxes = [...document.querySelectorAll('input[data-k]')];
+function tampil() {{
+  let n = 0;
+  boxes.forEach(b => {{ const on = !!st[b.dataset.k]; b.checked = on; b.closest('li').classList.toggle('ok', on); if (on) n++; }});
+  document.getElementById('hit').textContent = n + ' / ' + boxes.length + ' selesai';
+}}
+function simpan() {{ try {{ localStorage.setItem(KEY, JSON.stringify(st)); }} catch (e) {{}} }}
+boxes.forEach(b => {{
+  b.addEventListener('change', () => {{ st[b.dataset.k] = b.checked; simpan(); tampil(); }});
+  b.closest('li').querySelector('a').addEventListener('click', () => {{ st[b.dataset.k] = true; simpan(); tampil(); }});
+}});
+tampil();
+</script>
 """
     out = Path(__file__).parent / "worksheet.html"
     out.write_text(doc)
