@@ -49,14 +49,15 @@ Terakhir diperbarui: **Rabu, 14 Oktober 2026**
   maskapai). Selisih ke rata-rata rute maks ±10,7% (rata-rata 1%), ke Dom/Int maks 5,1%.
   Jika ditanya soal asal angka maskapai, rujuk ke salinan berpenanda.
 
-## Panen acuan 12 Okt 2026 — SELESAI (14 Okt)
+## Panen terakhir: acuan 19 Okt 2026 — SELESAI (Sen 19 Okt)
 
-- 75/75 halaman terkumpul (sempat diblokir 403 dua kali; selesai setelah jeda). File: `261012-Scrap Tiket Pesawat`,
-  `261012-Rata-rata Harga per Bulan`, `261012-Rp per km per Bulan`. 5.699 baris unik; **direct** per rute internasional
-  baru sedikit: BKK 24, DXB 17, HND 20, ICN 30, SGN 11, SYD 5 (SIN 138, KUL 185). SYD = Qantas 1 penerbangan/tanggal.
-  Cek: SIN 16 Okt hanya 66 baris (tidak tergulir penuh?).
-- Excel bos (`261009-...Rute.xlsx`, diedit manual) dan Maskapai BELUM memuat rute baru; rute baru baru ada 1 minggu data.
-- Beri jeda 30–60 dtk/halaman agar tidak diblokir. Berikutnya: Senin 19 Okt.
+- 75/75 halaman lengkap tanpa diblokir. File `261019-Scrap Tiket Pesawat` (6.595 baris unik), `261019-Rata-rata Harga per Bulan`,
+  `261019-Rp per km per Bulan`. Rp/km domestik: Okt 1.901, Nov 1.906. Sebelumnya: acuan 12 Okt (5.699 baris; direct rute
+  baru sedikit: SYD 5, SGN 11, DXB 17, HND 20, BKK 24, ICN 30).
+- Excel bos (`261009-...Rute.xlsx`, diedit manual) dan Maskapai BELUM memuat rute baru. Jangan jalankan `tabulasi_rute.py`
+  tanpa mengganti nama keluaran.
+- Pola aman dari blokir 403: jeda 30–60 dtk/halaman, domestik dulu lalu internasional, salin hasil berkala.
+- Berikutnya: Senin 26 Okt.
 
 ## Rutinitas mingguan (Senin)
 
